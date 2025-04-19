@@ -1,0 +1,21 @@
+# 빌드 결과물 제외
+/build/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+
+# 컴파일러 관련 파일 제외
+CMakeCache.txt
+CMakeFiles/
+
+# IDE 설정 파일 제외 (VS, CLion, etc.)
+*.vcxproj*
+*.sln
+.idea/
+.vscode/
+
+# 로그 및 임시 파일 제외
+*.log
+*.tmp
