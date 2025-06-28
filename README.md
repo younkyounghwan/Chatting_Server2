@@ -28,9 +28,9 @@ IOCP를 사용하여 효율적으로 네트워크 이벤트를 처리할 수 있
     + GameSessionManager : server에 연결된 여러 client의 session을 관리한다.
 
 > **ServerCore**
-  + DB
-    + DBConnection
-    + DBConnectionPool
+  + DB - ODBC 사용
+    + DBConnection: DB 연결. 쿼리를 실행하고 데이터 fetch 수행
+    + DBConnectionPool: 지정된 수의 Handle을 pool을 사용하여 관리.
   
   + Main
     + CoreGlobal : ThreadManager, Memory, SendBuffer, DeadLockProfiler를 글로벌하게 사용할 수 있게 한다.
