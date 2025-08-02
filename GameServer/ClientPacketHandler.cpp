@@ -157,18 +157,19 @@ void ClientPacketHandler::Handle_C_LOGIN(PacketSessionRef& session, BYTE* buffer
 
 	{ // DB
 		DBConnection* dbConn = GDBConnectionPool->Pop();
+		ASSERT_CRASH(dbConn != nullptr);
 
 		dbConn->Unbind();	// 기존에 바인딩 된 정보 날림
 
 		// 넘길 인자 바인딩
-		int32 Count = 0;
-		SQLLEN len = 0;
+		
 
-		// 넘길 인자 바인딩
-		ASSERT_CRASH(dbConn->BindParam(1, SQL_C_LONG, SQL_INTEGER, sizeof(Count), &Count, &len));
+		int32 count = 0;
+		SQLLEN countLen = 0;
+		ASSERT_CRASH(dbConn->BindParam(1, SQL_C_LONG, SQL_INTEGER, sizeof(count), &count, &countLen));
 
 		// SQL 실행
-		ASSERT_CRASH(dbConn->Execute(L"INSERT INTO [dbo].[Count]([Count]) VALUES(?)"));
+		ASSERT_CRASH(dbConn->Execute(L"INSERT INTO [dbo].[Count]([count]) VALUES(?)"));
 
 		GDBConnectionPool->Push(dbConn);
 	}
@@ -177,11 +178,13 @@ void ClientPacketHandler::Handle_C_LOGIN(PacketSessionRef& session, BYTE* buffer
 // 채팅 패킷
 void ClientPacketHandler::Handle_C_CHAT(PacketSessionRef& session, BYTE* buffer, int32 len)
 {
+	/*
+	* 클라로 부터 받아온 메세지를 출력한다.
+	*/
 	GameSessionRef gameSession = static_pointer_cast<GameSession>(session);
 	BufferReader br(buffer, len);
 
 	PKT_C_CHAT* pkt = reinterpret_cast<PKT_C_CHAT*>(buffer);
-
 
 	cout << "Player " << gameSession->_currentPlayer->playerId << " : " << pkt->msg << endl;
 
@@ -189,48 +192,59 @@ void ClientPacketHandler::Handle_C_CHAT(PacketSessionRef& session, BYTE* buffer,
 	GSessionManager.Broadcast(sendbuffer);
 
 	{ // DB
+		/*
+		 	해당 id가 메세지를 보낸 횟수를 fetch한다.
+			해당 id가 메세지를 보낸 횟수에 +1 한다.
+			해당 id가 메세지를 보낸 횟수를 UPDATE한다.
+		*/
 		DBConnection* dbConn = GDBConnectionPool->Pop();
 		dbConn->Unbind();	// 기존에 바인딩 된 정보 날림
 
-		// 조회할 ID 입력
+		// 조회할 ID 
 		int32 targetId = gameSession->_currentPlayer->playerId;
 		SQLLEN idLen = 0;
-
-		// count 값을 받을 변수
-		int32 outCount = 0;
-		SQLLEN CountLen = 0;
-
-		// 1. ID 조건으로 파라미터 바인딩
 		ASSERT_CRASH(dbConn->BindParam(1, SQL_C_LONG, SQL_INTEGER, sizeof(targetId), &targetId, &idLen));
 
-		// 2. SELECT 컬럼 출력 바인딩 (gold 값)
-		ASSERT_CRASH(dbConn->BindCol(1, SQL_C_LONG, sizeof(outCount), &outCount, &CountLen));
+		// 결과를 받을 변수
+		int32 count = 0;
+		SQLLEN countLen = 0;
+		ASSERT_CRASH(dbConn->BindCol(1, SQL_C_LONG, sizeof(count), &count, &countLen));
 
-		// 3. Execute - 조건 ID에 해당하는 골드 조회
-		ASSERT_CRASH(dbConn->Execute(L"SET NOCOUNT ON; SELECT count FROM [dbo].[Count]"));
+		// 해당 id의 count값을 받는다.
+		ASSERT_CRASH(dbConn->Execute(L"SELECT count FROM [dbo].[Count] WHERE id = (?)"));	
+
 
 		// 4. Fetch - 항상 맨 위의 row부터 (Unbind + SQL_CLOSE로 커서 초기화되기 때문)
 		if (dbConn->Fetch())
-		{ // 골드 값을 변경
-			outCount++;
+		{ 
+			count++;
 
-			// 5. 바인딩 초기화 후 업데이트 준비
-			dbConn->Unbind();
+			cout << "ID: " << targetId << " Count: " << count << endl;
 
-			// 6. UPDATE 쿼리용 파라미터 바인딩 (골드, ID 순서)
-			ASSERT_CRASH(dbConn->BindParam(1, SQL_C_LONG, SQL_INTEGER, sizeof(outCount), &outCount, &CountLen));
+			dbConn->Unbind();	// 기존에 바인딩 된 정보 날림
+			// 6. UPDATE 쿼리용 파라미터 바인딩 (count, ID 순서)
+			ASSERT_CRASH(dbConn->BindParam(1, SQL_C_LONG, SQL_INTEGER, sizeof(count), &count, &countLen));
 			ASSERT_CRASH(dbConn->BindParam(2, SQL_C_LONG, SQL_INTEGER, sizeof(targetId), &targetId, &idLen));
 
 			// 7. Execute - UPDATE 실행
-			ASSERT_CRASH(dbConn->Execute(L"UPDATE [dbo].[Count] SET count = (?)"));
+			ASSERT_CRASH(dbConn->Execute(L"UPDATE [dbo].[Count] SET count = (?) WHERE id = (?)"));
 
-			cout << "ID: " << targetId << " Count: " << outCount << endl;
 		}
 		else
 		{
 			cout << "No data found for ID: " << targetId << endl;
+
+			dbConn->Unbind();	// 기존에 바인딩 된 정보 날림
+			ASSERT_CRASH(dbConn->BindParam(1, SQL_C_LONG, SQL_INTEGER, sizeof(count), &count, &countLen));
+			ASSERT_CRASH(dbConn->BindParam(2, SQL_C_LONG, SQL_INTEGER, sizeof(targetId), &targetId, &idLen));
+
+			ASSERT_CRASH(dbConn->Execute(L"INSERT INTO [dbo].[Count](id, count) VALUES(?, ?)"));
 		}
 		dbConn->Unbind();
+
+		
+		// 5. 바인딩 초기화 후 업데이트 준비
+		
 
 		GDBConnectionPool->Push(dbConn);
 	}

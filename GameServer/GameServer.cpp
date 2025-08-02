@@ -14,7 +14,7 @@ int main()
 	// VS 내장 SQL 데이터베이스 서버를 사용
 
 	ASSERT_CRASH(GDBConnectionPool->Connect(
-		10, 
+		5, 
 		L"Driver={ODBC Driver 17 for SQL Server};Server=(localdb)\\ProjectsV13;Database=ServerDB;Trusted_Connection=Yes;"
 	));
 
@@ -25,10 +25,13 @@ int main()
 			CREATE TABLE [dbo].[Count]					\
 			(											\
 				[id] INT NOT NULL PRIMARY KEY IDENTITY, \
-				[count] INT NULL							\
+				[count] INT NULL						\
 			);";
 
+		ASSERT_CRASH(GDBConnectionPool != nullptr);
 		DBConnection* dbConn = GDBConnectionPool->Pop();
+		ASSERT_CRASH(dbConn != nullptr);
+
 		ASSERT_CRASH(dbConn->Execute(query));
 		GDBConnectionPool->Push(dbConn);
 	}

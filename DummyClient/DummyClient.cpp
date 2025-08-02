@@ -19,7 +19,7 @@ int main()
 		NetAddress(L"127.0.0.1", 7777),
 		MakeShared<IocpCore>(),
 		MakeShared<ServerSession>, 
-		3);
+		5);
 
 	ASSERT_CRASH(service->Start());
 
